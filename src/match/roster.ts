@@ -26,7 +26,7 @@ export interface HeroRead {
 /** What the Tab screen and the ability bar show of a hero, to tell a changed read from the same one. */
 function shown({ connection, pawn, owned }: HeroRead): string {
   const keys = owned.filter((a) => a.slot <= AbilitySlot.Ultimate).map((a) => `${a.slot}:${a.name}:${a.upgrades}`).sort()
-  return [connection.name, pawn.team, pawn.hero, ...keys].join(' ')
+  return [connection.name, pawn.team, pawn.hero, pawn.abilityPoints, pawn.abilityUnlocks, ...keys].join(' ')
 }
 
 /**

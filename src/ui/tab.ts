@@ -19,6 +19,9 @@ interface HeroRow {
   readonly team: Team
   readonly hero: PoolHero | undefined
   readonly abilities: readonly RowAbility[]
+  /** The ability points and unlocks the player holds unspent. */
+  readonly points: number
+  readonly unlocks: number
 }
 
 /**
@@ -38,7 +41,15 @@ function heroRows(heroes: readonly HeroRead[], bought: ReadonlyMap<number, reado
       const upgrades = (keys[slot] ?? 0) | (held?.upgrades ?? 0)
       return { ability: held === undefined ? undefined : poolAbility(held.name), upgrades }
     })
-    rows.push({ slot: c.player.slot, name: c.name, team: pawn.team, hero: heroById(pawn.hero), abilities })
+    rows.push({
+      slot: c.player.slot,
+      name: c.name,
+      team: pawn.team,
+      hero: heroById(pawn.hero),
+      abilities,
+      points: pawn.abilityPoints,
+      unlocks: pawn.abilityUnlocks,
+    })
   }
   return rows.sort((a, b) => a.team - b.team || a.slot - b.slot)
 }
@@ -82,11 +93,14 @@ export class TabSender {
   }
 
   private sendMine(player: Player, rows: readonly HeroRow[]): void {
-    // The game's ability bar shows no upgrades for abilities it did not
-    // give the hero, so the client layout draws every slot's upgrades from
-    // these; a click on the bar is the mod's, see src/match/upgrades.ts.
+    // The game's ability bar shows the upgrades of the hero's own ability for
+    // each slot, so the client layout lights every slot's pips from these, and
+    // which the player can buy from the points and unlocks; a click on the bar
+    // is the mod's, see src/match/upgrades.ts.
     const own = rows.find((r) => r.slot === player.slot)
-    const mine: Mine = { u: own === undefined ? [] : own.abilities.map((a) => a.upgrades) }
+    const mine: Mine = own === undefined
+      ? { u: [], p: 0, k: 0 }
+      : { u: own.abilities.map((a) => a.upgrades), p: own.points, k: own.unlocks }
     if (differs(this.mineSent, player.slot, mine)) {
       routeMine(player, mine)
     }

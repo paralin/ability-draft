@@ -303,11 +303,9 @@ const CELL_SLOT = 'slot'
 
 const CELL_UPGRADES = 'upgrades'
 
-const PIP_BORDER = '#00000099'
-
 /**
  * The game's read-only pips, from its hud_ability_icon style sheet: black, and
- * its deadlockGreen once bought. The mod's pips on the bar take them too.
+ * its deadlockGreen once bought.
  */
 const READ_ONLY_PIP_OFF = 'black'
 
@@ -558,16 +556,15 @@ function showTabTip(icon, cell) {
 // to Tier3: a frame whose picture grows with them, a ring from the first, and a
 // cooldown shade of the frame's shape. Each CitadelHudAbilityUpgradePips panel,
 // shown while Tab is held or the bar hovered, shows a pip and a cost on each of
-// its AbilityUnlock1..3, lit with the class hasAbilityUpgrade, and an icon
-// may show read-only pips too. The game sets these classes from its own idea
-// of the hero's abilities, which shows none for a drafted one, and sets them
-// again as it likes. So the mod draws all of them from mine, in styles written
-// on the panels themselves, which outrank any class: whatever the game sets,
-// the bar shows the mod's upgrades, once the server reads the hero again: it
-// reads one hero a frame, so each a few times a second. Each panel is written
-// only when its upgrades change. The pictures and shapes are the game's own,
-// from its hud_ability_icon style sheet. All of it goes back as the match ends
-// and as the player leaves, see leaving.
+// its AbilityUnlock1..3, or the unlock button for an ability not yet unlocked,
+// and an icon may show read-only pips too. The game draws these from the
+// hero's own ability for each slot, which shows none for a drafted one, and
+// sets them again as it likes. So the mod draws them from mine: the frame and
+// the read-only pips in styles written on the panels themselves, which outrank
+// any class, and the upgrade pips with the game's own classes, set again every
+// tick, so they look and act as the game's do for its own abilities. The
+// pictures and shapes are the game's own. All of it goes back as the match
+// ends and as the player leaves, see leaving.
 
 /** How long a purchase holds the ability's key, long enough for the game to read it. */
 const KEY_SECONDS = 0.05
@@ -579,14 +576,18 @@ const FRAME_IMAGES = 's2r://panorama/images/hud/core/'
 /** Where the mod last drew a panel's upgrades, so it draws them again only when they change. */
 const DRAWN_KEY = 'abilityDraftUpgrades'
 
-/** A bar pip, flatter than the game's round one, like the read-only pips on Tab's icons. */
-const BAR_PIP_WIDTH = '18px'
+/** What each upgrade costs in ability points, as the game's pips show it. */
+const TIER_COSTS = [1, 2, 5]
 
-const BAR_PIP_HEIGHT = '6px'
-
-const NO_WASH = '#00000000'
+/** Marks the cost the mod set on a pip, which it sets once. */
+const COST_KEY = 'abilityDraftCost'
 
 let mineUpgrades = []
+
+/** The ability points and unlocks the player holds unspent. */
+let minePoints = 0
+
+let mineUnlocks = 0
 
 let signature = null
 
@@ -700,53 +701,32 @@ function drawReadOnlyPips(icon, bits) {
 }
 
 /**
- * Each upgrade's pip while Tab is held, drawn flat in the read-only pips' colors. The
- * game's cost under it, its lit background, its flash and its unlock button
- * are left out, since they follow the game's idea of the upgrades: Tab with the
- * ability's key or a click unlocks it. The game hides the pips in the button's
- * place while it takes the ability for one not yet unlocked, so the pips are
- * shown whatever it takes.
+ * Each slot's upgrade pips while Tab is held, with the classes the game gives
+ * its own abilities: isUnlocked once the ability is unlocked, else canUnlock
+ * with an unlock to spend, which shows the game's unlock button, or
+ * not_trained; on each upgrade hasAbilityUpgrade once bought, canUnlock while
+ * the points cover it, canAffordUpgrade on the next one to buy when they do,
+ * and its cost.
  */
 function drawPips(pips, bits) {
-  if (updateAttribute(pips, DRAWN_KEY, 'drawn')) {
-    for (const id of ['TrainButton', 'LockedMsg']) {
-      const part = pips.FindChildTraverse(id)
-      if (part) {
-        part.style.visibility = 'collapse'
-      }
-    }
-    const row = pips.FindChildTraverse('AbilityUpgradePips')
-    if (row) {
-      row.style.visibility = 'visible'
-      row.style.opacity = '1'
-    }
-  }
+  const unlocked = bought(bits, 0)
+  pips.SetHasClass('isUnlocked', unlocked)
+  pips.SetHasClass('canUnlock', !unlocked && mineUnlocks > 0)
+  pips.SetHasClass('not_trained', !unlocked && mineUnlocks <= 0)
+  let next = true
   for (let n = 1; n <= UPGRADE_TIERS; n++) {
-    const unlock = pips.FindChildTraverse('AbilityUnlock' + n)
-    if (!unlock || !updateAttribute(unlock, DRAWN_KEY, String(bits))) {
+    const tier = pips.FindChildTraverse('AbilityUnlock' + n)
+    if (!tier) {
       continue
     }
-    const on = bought(bits, n)
-    unlock.style.backgroundColor = NO_WASH
-    unlock.style.opacity = '1'
-    const flash = firstWithClass(unlock, 'upgradeReadyFlash')
-    if (flash) {
-      flash.style.opacity = '0'
-    }
-    const pip = firstWithClass(unlock, 'abilityLevelPip')
-    if (pip) {
-      pip.style.backgroundImage = 'none'
-      pip.style.washColor = NO_WASH
-      pip.style.opacity = '1'
-      pip.style.width = BAR_PIP_WIDTH
-      pip.style.height = BAR_PIP_HEIGHT
-      pip.style.borderRadius = '2px'
-      pip.style.border = '1px solid ' + PIP_BORDER
-      pip.style.backgroundColor = on ? READ_ONLY_PIP_ON : READ_ONLY_PIP_OFF
-    }
-    const cost = firstWithClass(unlock, 'abilityUpgradeCostLabel')
-    if (cost) {
-      cost.style.visibility = 'collapse'
+    const cost = TIER_COSTS[n - 1]
+    const has = bought(bits, n)
+    tier.SetHasClass('hasAbilityUpgrade', has)
+    tier.SetHasClass('canUnlock', minePoints >= cost)
+    tier.SetHasClass('canAffordUpgrade', unlocked && !has && next && minePoints >= cost)
+    next = next && has
+    if (updateAttribute(tier, COST_KEY, String(cost))) {
+      tier.SetDialogVariableInt('ability_point_cost', cost)
     }
   }
 }
@@ -781,40 +761,12 @@ function clearFrame(icon) {
   }
 }
 
+/** The pips keep the game's classes as the mod last set them, which the game sets again for the next hero it shows. */
 function clearPips(pips) {
-  pips.SetAttributeString(DRAWN_KEY, '')
-  for (const id of ['TrainButton', 'LockedMsg']) {
-    const part = pips.FindChildTraverse(id)
-    if (part) {
-      part.style.visibility = null
-    }
-  }
-  const row = pips.FindChildTraverse('AbilityUpgradePips')
-  if (row) {
-    row.style.visibility = null
-    row.style.opacity = null
-  }
   for (let n = 1; n <= UPGRADE_TIERS; n++) {
-    const unlock = pips.FindChildTraverse('AbilityUnlock' + n)
-    if (!unlock) {
-      continue
-    }
-    unlock.SetAttributeString(DRAWN_KEY, '')
-    unlock.style.backgroundColor = null
-    unlock.style.opacity = null
-    const flash = firstWithClass(unlock, 'upgradeReadyFlash')
-    if (flash) {
-      flash.style.opacity = null
-    }
-    const pip = firstWithClass(unlock, 'abilityLevelPip')
-    if (pip) {
-      for (const name of ['backgroundImage', 'washColor', 'opacity', 'width', 'height', 'borderRadius', 'border', 'backgroundColor']) {
-        pip.style[name] = null
-      }
-    }
-    const cost = firstWithClass(unlock, 'abilityUpgradeCostLabel')
-    if (cost) {
-      cost.style.visibility = null
+    const tier = pips.FindChildTraverse('AbilityUnlock' + n)
+    if (tier) {
+      tier.SetAttributeString(COST_KEY, '')
     }
   }
 }
@@ -1205,6 +1157,8 @@ onRoute(Route.Tab, (value) => {
 
 onRoute(Route.Mine, (value) => {
   mineUpgrades = value && Array.isArray(value.u) ? value.u : []
+  minePoints = value ? value.p | 0 : 0
+  mineUnlocks = value ? value.k | 0 : 0
   $.Schedule(0, markBar)
 })
 

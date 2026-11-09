@@ -125,6 +125,10 @@ export function routeTab(player: Player, heroes: readonly TabHero[]): void {
 export interface Mine {
   /** Their upgrade bits, which the client layout lights on the game's ability bar. */
   readonly u: readonly number[]
+  /** The ability points the player holds unspent, which decide the upgrades they can buy. */
+  readonly p: number
+  /** The ability unlocks the player holds unspent, which decide whether an ability can be unlocked. */
+  readonly k: number
 }
 
 export function routeMine(player: Player, mine: Mine): void {
