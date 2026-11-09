@@ -18,15 +18,6 @@ function gameHud() {
   return null
 }
 
-/** The topmost panel above the layout, where the tooltips hang. */
-function topRoot() {
-  let at = context
-  while (at.GetParent()) {
-    at = at.GetParent()
-  }
-  return at
-}
-
 function childrenOf(panel) {
   const children = []
   for (let index = 0; index < panel.GetChildCount(); index++) {
@@ -134,140 +125,6 @@ function hideAbilityWindow(anchor) {
 
 function bought(bits, tier) {
   return (bits & (1 << tier)) !== 0
-}
-
-// The picker: hidden while the mod asks, swept again in case the game shows
-// it once more, and shown again once the mod stops asking. The draft board's
-// buttons are watched only while it hides, through the lobby and draft.
-
-const SWEEP_SECONDS = 0.25
-
-let pickerHidden = false
-
-let sweeping = false
-
-function setPicker() {
-  const hud = gameHud()
-  const picker = hud ? hud.FindChildTraverse('join_team') : null
-  if (picker) {
-    picker.style.visibility = pickerHidden ? 'collapse' : null
-  }
-}
-
-/** The HUD is hidden again only from this loop, so it relies on the picker staying hidden at least as long. */
-function sweep() {
-  sweeping = false
-  if (!alive()) {
-    return
-  }
-  setPicker()
-  setHud()
-  if (pickerHidden) {
-    sweeping = true
-    $.Schedule(SWEEP_SECONDS, sweep)
-  }
-}
-
-// The game's HUD: hidden while the mod asks, and what showed comes back once it stops.
-
-/** Marks a panel of the game's HUD this script keeps hidden: whether it showed. */
-const HUD_MARK = 'ability_draft_hidden'
-
-const HudMark = Object.freeze({ None: '', Shown: 'shown', Unseen: 'unseen' })
-
-const KEPT_ID = /^(Modlock|Hyperline|TooltipManager$)/
-
-const HUD_SEARCH_SWEEPS = 8
-
-let hudHidden = false
-
-let hiddenParts = []
-
-let hudSweeps = 0
-
-let hudRestored = false
-
-/**
- * The panels of the game's HUD to hide: every panel beside the way down to what
- * stays, which is this layout, Modlock's and Hyperline's own panels and the
- * game's tooltips.
- */
-function hudParts(hud) {
-  const stays = findAll(hud, (panel) => KEPT_ID.test(panel.id))
-  stays.push(context)
-  const way = new Set()
-  for (const panel of stays) {
-    for (let at = panel; at && at !== hud; at = at.GetParent()) {
-      way.add(at)
-    }
-  }
-  const parts = []
-  const walk = (parent) => {
-    for (const child of childrenOf(parent)) {
-      if (KEPT_ID.test(child.id) || child === context) {
-        continue
-      }
-      if (way.has(child)) {
-        walk(child)
-      } else {
-        parts.push(child)
-      }
-    }
-  }
-  walk(hud)
-  return parts
-}
-
-/**
- * Hides the game's HUD while the mod asks, and brings back what showed once it
- * stops. It sets each panel's visible, as Hyperline does: a style's visibility
- * set back to null leaves a panel unseen until the game lays it out anew, as Tab
- * does. A mark on each panel holds whether it showed, so a script that loads
- * mid-draft brings back what this one hid; a panel the game shows meanwhile is
- * hidden again and comes back too.
- */
-function setHud() {
-  const hud = gameHud()
-  if (!hud) {
-    return
-  }
-  if (hudHidden) {
-    hideHudParts(hud)
-  } else if (!hudRestored) {
-    restoreHudParts(hud)
-  }
-}
-
-function hideHudParts(hud) {
-  hudRestored = false
-  if (!allValid(hiddenParts) || hudSweeps++ % HUD_SEARCH_SWEEPS === 0) {
-    hiddenParts = hudParts(hud)
-  }
-  for (const panel of hiddenParts) {
-    if (panel.visible) {
-      panel.SetAttributeString(HUD_MARK, HudMark.Shown)
-      panel.visible = false
-    } else if (panel.GetAttributeString(HUD_MARK, HudMark.None) === HudMark.None) {
-      panel.SetAttributeString(HUD_MARK, HudMark.Unseen)
-    }
-  }
-}
-
-function restoreHudParts(hud) {
-  hudRestored = true
-  hiddenParts = []
-  for (const panel of hudParts(hud)) {
-    // A panel that showed comes back. One that did not is left to the game,
-    // since setting visible overrides its style sheets: gameplay_hud stays
-    // collapsed until a player joins a team, by the rule .joined_team.
-    const mark = panel.GetAttributeString(HUD_MARK, HudMark.None)
-    if (mark !== HudMark.None) {
-      panel.SetAttributeString(HUD_MARK, HudMark.None)
-      if (mark === HudMark.Shown) {
-        panel.visible = true
-      }
-    }
-  }
 }
 
 // The Tab screen: the game's top bar, opened wide while Tab is held, shows
@@ -851,7 +708,7 @@ function closeBoardWindow() {
 }
 
 function watchBoard() {
-  if (!alive() || !pickerHidden) {
+  if (!alive() || !tipSlots) {
     closeBoardWindow()
     lastMouse = ''
     watching = false
@@ -977,26 +834,6 @@ function listenForClicks(panel, slot) {
 // The Broker's window counts down to when he leaves, a time the game no longer
 // sets, so it would read 34 days. That line stays hidden.
 
-/** The HUD's panel the game marks while the player stands at his booth, kept until the game rebuilds it. */
-let contextActions = null
-
-/** Looked for only while the player stands at his booth. */
-let brokerCountdown = null
-
-function hideBrokerCountdown() {
-  if (!contextActions || !contextActions.IsValid()) {
-    const hud = gameHud()
-    contextActions = hud ? hud.FindChildTraverse('context_action_container') : null
-  }
-  if ((!brokerCountdown || !brokerCountdown.IsValid()) && contextActions && contextActions.BHasClass('in_corrupted_shop_zone')) {
-    const content = topRoot().FindChildTraverse('ModsCorruptContainer')
-    brokerCountdown = content ? content.FindChildTraverse('Countdown') : null
-  }
-  if (brokerCountdown && brokerCountdown.IsValid() && brokerCountdown.visible) {
-    brokerCountdown.visible = false
-  }
-}
-
 /** True once the mod says the match is over; see the over route. */
 let matchOver = false
 
@@ -1009,17 +846,14 @@ function drawing() {
 }
 
 /**
- * Gives the game's HUD back as it was: Tab's icons, the ability bar, the
- * Broker's countdown and the draft board's window. The game's own lobby shows
+ * Gives the game's HUD back as it was: Tab's icons, the ability bar and the
+ * draft board's window. Modlock gives back the HUD, the picker and the
+ * Broker's countdown the mod hides with hideHud. The game's own lobby shows
  * the same HUD, and once the player leaves for it this script is gone.
  */
 function releaseHud() {
   undressTab()
   unmarkBar()
-  if (brokerCountdown && brokerCountdown.IsValid()) {
-    brokerCountdown.visible = true
-  }
-  brokerCountdown = null
   closeBoardWindow()
 }
 
@@ -1039,17 +873,8 @@ function releaseHud() {
 function leaving() {
   if (alive() && !left) {
     left = true
-    hudHidden = false
-    pickerHidden = false
+    tipSlots = null
     releaseHud()
-    const hud = gameHud()
-    if (hud) {
-      restoreHudParts(hud)
-    }
-    const picker = hud ? hud.FindChildTraverse('join_team') : null
-    if (picker) {
-      picker.style.visibility = null
-    }
     $.Msg('[ability-draft] gave the game its HUD back on leaving')
   }
   return false
@@ -1065,15 +890,12 @@ function tick() {
     coverTab()
   }
   markBar()
-  if (drawing()) {
-    hideBrokerCountdown()
-  }
   $.Schedule(TICK_SECONDS, tick)
 }
 
 /** The routes src/ui/client.tsx sends; this script cannot import its enum. */
 const Route = Object.freeze({
-  Hud: 'hud', Picker: 'picker', Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade', TipSlots: 'tipSlots',
+  Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade', TipSlots: 'tipSlots',
   Over: 'over',
 })
 
@@ -1094,28 +916,6 @@ function onRoute(name, handler) {
 }
 
 // The wiring: each handler runs right here, so nothing is declared below this line.
-
-onRoute(Route.Hud, (value) => {
-  hudHidden = value === true
-  // The HUD hides only before a match, so a match over is one gone by.
-  if (hudHidden) {
-    matchOver = false
-  }
-  if (alive()) {
-    setHud()
-  }
-})
-
-onRoute(Route.Picker, (value) => {
-  pickerHidden = value === true
-  if (!sweeping) {
-    sweep()
-  }
-  if (pickerHidden && !watching) {
-    watching = true
-    $.Schedule(0, watchBoard)
-  }
-})
 
 onRoute(Route.Buy, buy)
 
@@ -1147,6 +947,10 @@ onRoute(Route.Over, (value) => {
 onRoute(Route.TipSlots, (value) => {
   tipSlots = value && typeof value === 'object' ? value : null
   lastMouse = ''
+  if (tipSlots && !watching) {
+    watching = true
+    $.Schedule(0, watchBoard)
+  }
 })
 
 $.RegisterForUnhandledEvent('CitadelDisconnectFromGame', leaving)

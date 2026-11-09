@@ -32,7 +32,8 @@ export class WaitView {
 
   /**
    * The game's team picker stays hidden until the match begins, and its whole
-   * HUD until the last pick; the client layout hides both.
+   * HUD until the last pick; Modlock hides both and gives them back when
+   * the person leaves.
    */
   private hideGameUi(c: Connection): void {
     const slot = c.player.slot

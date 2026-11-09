@@ -16,7 +16,7 @@ import { LateArrivals } from './match/late'
 import { matchOver } from './match/over'
 import { connectedPeople, type HeroRead, HeroReads, playerAt } from './match/roster'
 import { KeyUpgrades } from './match/upgrades'
-import { showGameHud } from './ui/client'
+import { clearHidden, forgetHidden, showGameHud } from './ui/client'
 import { Cues } from './ui/cues'
 import { TooltipHelpers } from './ui/helper'
 import { Painter } from './ui/painter'
@@ -99,6 +99,7 @@ export class Flow {
     this.nextBoard = undefined
     this.botsCalled = false
     this.painter.clear()
+    clearHidden()
     this.heroAskedAt.clear()
     this.heroClickedAt.clear()
     this.room.clear()
@@ -292,6 +293,7 @@ export class Flow {
         hide(c.player)
         this.tabSender.forget(c.player.slot)
         this.painter.forget(c.player.slot)
+        forgetHidden(c.player.slot)
       }
     }
   }

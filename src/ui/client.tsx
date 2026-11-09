@@ -1,4 +1,4 @@
-import { type Child, type Player, route, show } from 'modlock'
+import { type Child, hideHud, type HudPart, type Player, route, show } from 'modlock'
 
 // One-letter keys because these are the routes' wire format: Tab's list carries
 // every hero, about 3 KB of the 8192 bytes a route holds.
@@ -14,8 +14,6 @@ export function display(player: Player, root: Child): void {
 
 /** The routes content/scripts/client.js listens on. */
 enum Route {
-  Picker = 'picker',
-  Hud = 'hud',
   Tab = 'tab',
   Mine = 'mine',
   Buy = 'buy',
@@ -61,24 +59,61 @@ export function forgetUpgrades(player: Player): void {
   route(player, Route.Upgrade, undefined)
 }
 
+/**
+ * What a person's game HUD hides: everything until the last pick, the team
+ * picker until the match begins, and the Broker's countdown, which reads 34
+ * days, until the match is over. Modlock gives it all back when they leave.
+ */
+interface Hidden {
+  readonly all: boolean
+  readonly picker: boolean
+  readonly over: boolean
+}
+
+const SHOWN: Hidden = { all: false, picker: false, over: false }
+
+const hidden = new Map<number, Hidden>()
+
+function setHidden(player: Player, change: Partial<Hidden>): void {
+  const next = { ...(hidden.get(player.slot) ?? SHOWN), ...change }
+  hidden.set(player.slot, next)
+  const parts: HudPart[] = []
+  if (next.all) {
+    parts.push('all')
+  }
+  if (next.picker) {
+    parts.push('heroPicker')
+  }
+  if (!next.over) {
+    parts.push('brokerCountdown')
+  }
+  hideHud(player, parts)
+}
+
 export function hidePicker(player: Player): void {
-  route(player, Route.Picker, true)
+  setHidden(player, { picker: true })
 }
 
 export function showPicker(player: Player): void {
-  route(player, Route.Picker, false)
+  setHidden(player, { picker: false })
 }
 
-/**
- * The client layout does it because stock hideHud brings a panel back only once
- * the game lays the HUD out anew, as Tab does.
- */
 export function hideGameHud(player: Player): void {
-  route(player, Route.Hud, true)
+  setHidden(player, { all: true })
 }
 
 export function showGameHud(player: Player): void {
-  route(player, Route.Hud, false)
+  setHidden(player, { all: false })
+}
+
+/** A person who left starts again with the game's whole HUD. */
+export function forgetHidden(slot: number): void {
+  hidden.delete(slot)
+}
+
+/** A new lobby starts every person again with the game's whole HUD. */
+export function clearHidden(): void {
+  hidden.clear()
 }
 
 export interface TabHero {
@@ -96,10 +131,12 @@ export interface TabHero {
 }
 
 /**
- * Once the match is over the client layout gives the game's HUD back: the
+ * Once the match is over the game's HUD comes back, the Broker's countdown
+ * with it, and the client layout gives back Tab's and the bar's icons: the
  * game's own lobby shows the same HUD, where the layout no longer runs.
  */
 export function routeOver(player: Player): void {
+  setHidden(player, { over: true })
   route(player, Route.Over, true)
 }
 
