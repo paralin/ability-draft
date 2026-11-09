@@ -459,7 +459,7 @@ export class Flow {
     this.painter.paintDraft(draft, this.now, {
       press: (p, spot) => this.press(p, spot),
       ready: (p) => this.ready(p),
-    }, this.tipHelpers.slots())
+    }, this.tipHelpers.tips())
   }
 
   /**

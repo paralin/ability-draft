@@ -18,17 +18,7 @@ enum Route {
   Mine = 'mine',
   Buy = 'buy',
   Upgrade = 'upgrade',
-  TipSlots = 'tipSlots',
   Over = 'over',
-}
-
-/**
- * By ability game name, the slot whose hero the game's ability window reads
- * for the draft board: the tooltips' helper for the ability's hero. Undefined
- * clears it after the picks.
- */
-export function routeTipSlots(player: Player, slots: Readonly<Record<string, number>> | undefined): void {
-  route(player, Route.TipSlots, slots)
 }
 
 /** An item the person's game buys with the game's own command; order tells each purchase apart. */

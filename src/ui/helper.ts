@@ -155,17 +155,20 @@ export class TooltipHelpers {
     return this.helpers.some(({ bot }) => bot.slot === slot)
   }
 
-  /** By ability game name, the slot of its hero's helper, for the helpers ready and still here. */
-  slots(): Readonly<Record<string, number>> {
-    const slots: Record<string, number> = {}
+  /**
+   * By ability game name, its hero's helper, for the helpers ready and still
+   * here: the game's ability window reads the numbers off the helper's hero.
+   */
+  tips(): Readonly<Record<string, Player>> {
+    const tips: Record<string, Player> = {}
     for (const { hero, bot, seen, ready } of this.helpers) {
       if (seen && ready) {
         for (const ability of hero.abilities) {
-          slots[ability.name] = bot.slot
+          tips[ability.name] = bot
         }
       }
     }
-    return slots
+    return tips
   }
 
   /** Removes the helpers still in their slots. */

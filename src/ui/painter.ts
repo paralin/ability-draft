@@ -1,9 +1,9 @@
-import { freeCursor, players } from 'modlock'
+import { freeCursor, type Player, players } from 'modlock'
 
 import { type Draft, Phase } from '../draft/draft'
 import { connectedPeople } from '../match/roster'
 import { type DraftActions, drawDraft } from './board'
-import { display, routeOver, routeTipSlots, showGameHud, showPicker } from './client'
+import { display, routeOver, showGameHud, showPicker } from './client'
 import { drawLobby, type LobbyActions, type LobbyRoom } from './lobby'
 
 const CLIENT_ONLY = 'client'
@@ -26,21 +26,20 @@ export class Painter {
   }
 
   /**
-   * The timer stops counting once the picks end. tipSlots names, by ability,
-   * the slot whose hero the game's ability window reads for the board's
+   * The timer stops counting once the picks end. tips names, by ability, the
+   * player whose hero the game's ability window reads for the board's
    * tooltips; it grows as the helpers come, one a frame.
    */
-  paintDraft(draft: Draft, now: number, actions: DraftActions, tipSlots: Readonly<Record<string, number>>): void {
+  paintDraft(draft: Draft, now: number, actions: DraftActions, tips: Readonly<Record<string, Player>>): void {
     const secondsLeft = draft.secondsLeft(now)
-    const helped = Object.keys(tipSlots).length
+    const helped = Object.keys(tips).length
     const key = `${this.version}:${draft.phase === Phase.Done ? '-' : secondsLeft}:${helped}`
     for (const c of connectedPeople()) {
       this.showIfChanged(c.player.slot, key, () => {
         // The board frees the mouse to click its abilities; a hidden screen,
         // as after a reconnect, forgets it, so every draw asks again.
         freeCursor(c.player, true)
-        routeTipSlots(c.player, helped > 0 ? tipSlots : undefined)
-        drawDraft(c.player, draft, { secondsLeft, ...actions })
+        drawDraft(c.player, draft, { secondsLeft, tips, ...actions })
       })
     }
   }
@@ -95,7 +94,6 @@ export class Painter {
         freeCursor(c.player, false)
         showGameHud(c.player)
         showPicker(c.player)
-        routeTipSlots(c.player, undefined)
         display(c.player, null)
         this.drawn.set(c.player.slot, CLIENT_ONLY)
       }

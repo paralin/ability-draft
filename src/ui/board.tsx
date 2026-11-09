@@ -11,8 +11,6 @@ import { Color, Dim, teamColor, teamTint } from './theme'
 
 const ICON_SIZE = 56
 
-/** Followed by the ability's game name, the class the client layout finds an ability's button by, for its window. */
-const ABILITY_CLASS = 'ad-ability-'
 /** Its icon in a 2 pixel frame. */
 const CELL_WIDTH = ICON_SIZE + 4
 const HEROES_PER_ROW = 3
@@ -50,6 +48,8 @@ export interface DraftActions {
 
 interface DraftView extends DraftActions {
   readonly secondsLeft: number
+  /** By ability game name, the player whose hero the game's ability window reads. */
+  readonly tips: Readonly<Record<string, Player>>
 }
 
 interface BoardProps {
@@ -449,6 +449,7 @@ function AbilityButton(props: AbilityButtonProps) {
   const allowed = draft.mayTake(mySeat, spot)
   const ultimate = spot.column === AbilitySlot.Ultimate
   const crossed = taker !== undefined || !drafted(ability)
+  const tip = view.tips[ability.name]
   return (
     <button
       style={{
@@ -456,7 +457,7 @@ function AbilityButton(props: AbilityButtonProps) {
         borderColor: taker ? teamColor(taker.team) : ultimate ? Color.Ultimate : Color.Edge,
       }}
       hover={crossed ? undefined : { borderWidth: 2, borderColor: Color.Lit }}
-      class={`${ABILITY_CLASS}${ability.name}`}
+      ability={tip ? { name: ability.name, player: tip } : undefined}
       onPress={(player) => view.press(player, spot)}
     >
       <image

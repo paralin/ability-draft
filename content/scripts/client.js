@@ -79,11 +79,7 @@ const UNKNOWN_TIP = '???'
 // The game's own ability window, CitadelShowAbilityDetailsTooltip: it draws
 // any ability by its id, in the player's language, reading its text and
 // numbers off the hero of the player slot given, which must stand on the map.
-// The draft board passes the slot of the helper bot the mod keeps for the
-// ability's hero, the Tab screen each row's player's.
-
-/** By ability game name, the slot the mod names for the draft board's ability windows, or null. */
-let tipSlots = null
+// The Tab screen passes each row's player's.
 
 /** The game's id of a class name, as Modlock's itemId computes it: MurmurHash2 with the game's seed. */
 function classId(name) {
@@ -638,103 +634,6 @@ function pipsOf(icon) {
   return beside.length === 1 ? beside[0] : null
 }
 
-// The draft board's ability windows: the game's own ability window opens at a
-// board ability's button while the mouse is over it, once the mod names a slot
-// for it, and closes as the mouse leaves. This runs every frame, but only
-// through the lobby and the draft, and looks at the buttons only when the
-// mouse moves or the slots change.
-
-let watching = false
-
-/**
- * The board's ability buttons wear this class followed by the ability's game
- * name, as src/ui/board.tsx names it.
- */
-const ABILITY_CLASS = 'ad-ability-'
-
-/** A button not found is looked for again after this long. */
-const BUTTON_SEARCH_SECONDS = 1
-
-/** The board's button the game's ability window stands beside, while it shows. */
-let boardWindow = null
-
-/** The game name of the ability whose window shows, or ''. */
-let boardWindowKey = ''
-
-/** Board buttons by ability name, as found: { panel, at }, panel null when not found at seconds at. */
-const boardButtons = new Map()
-
-/** Where the mouse stood at the last look, or '' to look again. */
-let lastMouse = ''
-
-function boardButton(key) {
-  const now = Date.now() / 1000
-  const known = boardButtons.get(key)
-  if (known && (known.panel ? known.panel.IsValid() : now - known.at < BUTTON_SEARCH_SECONDS)) {
-    return known.panel
-  }
-  const screen = context.GetParent() || context
-  const panel = findAll(screen, (each) => each.BHasClass(ABILITY_CLASS + key))[0] || null
-  boardButtons.set(key, { panel, at: now })
-  return panel
-}
-
-/** Whether mouse is over the panel; its position and its laid-out size are both in the window's pixels. */
-function mouseOver(panel, mouse) {
-  const at = panel.GetPositionWithinWindow()
-  if (!at) {
-    return false
-  }
-  return mouse.x >= at.x && mouse.x < at.x + panel.actuallayoutwidth && mouse.y >= at.y && mouse.y < at.y + panel.actuallayoutheight
-}
-
-/** The game name of the board ability with a slot under mouse, or ''. */
-function abilityUnder(mouse) {
-  for (const key of Object.keys(tipSlots || {})) {
-    const button = typeof tipSlots[key] === 'number' ? boardButton(key) : null
-    if (button && mouseOver(button, mouse)) {
-      return key
-    }
-  }
-  return ''
-}
-
-function closeBoardWindow() {
-  if (boardWindow && boardWindow.IsValid()) {
-    hideAbilityWindow(boardWindow)
-  }
-  boardWindow = null
-  boardWindowKey = ''
-}
-
-function watchBoard() {
-  if (!alive() || !tipSlots) {
-    closeBoardWindow()
-    lastMouse = ''
-    watching = false
-    return
-  }
-  // A button drawn anew is looked for again.
-  if (boardWindow && !boardWindow.IsValid()) {
-    lastMouse = ''
-  }
-  const mouse = $.MousePosition()
-  const where = mouse ? mouse.x + ',' + mouse.y : ''
-  if (where !== lastMouse) {
-    lastMouse = where
-    const key = mouse ? abilityUnder(mouse) : ''
-    if (key !== boardWindowKey || (key && !boardWindow.IsValid())) {
-      closeBoardWindow()
-      if (key) {
-        boardWindow = boardButton(key)
-        boardWindowKey = key
-        showAbilityWindow(boardWindow, key, tipSlots[key])
-      }
-    }
-  }
-  $.Schedule(0, watchBoard)
-}
-
 /** The number of the newest purchase made, so a route read again does not repeat it. */
 let lastBuy = 0
 
@@ -846,15 +745,13 @@ function drawing() {
 }
 
 /**
- * Gives the game's HUD back as it was: Tab's icons, the ability bar and the
- * draft board's window. Modlock gives back the HUD, the picker and the
+ * Gives the game's HUD back as it was: Tab's icons and the ability bar. Modlock gives back the HUD, the picker and the
  * Broker's countdown the mod hides with hideHud. The game's own lobby shows
  * the same HUD, and once the player leaves for it this script is gone.
  */
 function releaseHud() {
   undressTab()
   unmarkBar()
-  closeBoardWindow()
 }
 
 /**
@@ -865,15 +762,13 @@ function releaseHud() {
  * left alone here, since the hideout may send it at other times. Leaving by
  * the menu, these reach this layout while it still runs; a server that just
  * goes away reaches it by none. The game's own lobby shows the same HUD, so
- * whichever comes first gives the game everything back: what releaseHud gives,
- * the hidden HUD and the picker; and the script draws no more, since the
- * layout still runs a moment in the game's lobby, where the tick would draw it
- * all again. Returns false, so the event goes on to Hyperline's own handler.
+ * whichever comes first gives back what releaseHud gives, and the script
+ * draws no more, since the layout still runs a moment in the game's lobby,
+ * where the tick would draw it all again. Returns false, so the event goes on to Hyperline's own handler.
  */
 function leaving() {
   if (alive() && !left) {
     left = true
-    tipSlots = null
     releaseHud()
     $.Msg('[ability-draft] gave the game its HUD back on leaving')
   }
@@ -895,7 +790,7 @@ function tick() {
 
 /** The routes src/ui/client.tsx sends; this script cannot import its enum. */
 const Route = Object.freeze({
-  Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade', TipSlots: 'tipSlots',
+  Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade',
   Over: 'over',
 })
 
@@ -941,15 +836,6 @@ onRoute(Route.Over, (value) => {
   matchOver = value === true
   if (matchOver && alive()) {
     releaseHud()
-  }
-})
-
-onRoute(Route.TipSlots, (value) => {
-  tipSlots = value && typeof value === 'object' ? value : null
-  lastMouse = ''
-  if (tipSlots && !watching) {
-    watching = true
-    $.Schedule(0, watchBoard)
   }
 })
 
