@@ -1,12 +1,12 @@
-import { freeCursor, type Player, players } from 'modlock'
+import { freeCursor, type Player, players, show } from 'modlock'
 
 import { type Draft, Phase } from '../draft/draft'
 import { connectedPeople } from '../match/roster'
 import { type DraftActions, drawDraft } from './board'
-import { display, routeOver, showGameHud, showPicker } from './client'
+import { showGameHud, showOverHud, showPicker } from './hud'
 import { drawLobby, type LobbyActions, type LobbyRoom } from './lobby'
 
-const CLIENT_ONLY = 'client'
+const NO_BOARD = 'none'
 const OVER = 'over'
 
 export class Painter {
@@ -68,25 +68,24 @@ export class Painter {
 
   paintPlaying(): void {
     for (const c of connectedPeople()) {
-      this.showIfChanged(c.player.slot, CLIENT_ONLY, () => display(c.player, null))
+      this.showIfChanged(c.player.slot, NO_BOARD, () => show(c.player, null))
     }
   }
 
-  /** Once the match is over, the client layout gives each person the game's HUD back. */
+  /** Once the match is over, each person gets the game's HUD back. */
   paintOver(): void {
     for (const c of connectedPeople()) {
       this.showIfChanged(c.player.slot, OVER, () => {
-        routeOver(c.player)
-        display(c.player, null)
+        showOverHud(c.player)
+        show(c.player, null)
       })
     }
   }
 
   /**
-   * Gives every person the mouse, the game's HUD and its team picker back. A
-   * screen with only the client layout clears the board: the game drops the empty
-   * screen hide leaves, which kept the board up through the match, and the layout
-   * stays for the Tab screen and the ability bar.
+   * Gives every person the mouse, the game's HUD and its team picker back. An
+   * empty screen clears the board and keeps the HUD claims, the Tab screen's
+   * and the ability bar's, which hide would drop with it.
    */
   releaseScreens(): void {
     for (const c of players()) {
@@ -94,8 +93,8 @@ export class Painter {
         freeCursor(c.player, false)
         showGameHud(c.player)
         showPicker(c.player)
-        display(c.player, null)
-        this.drawn.set(c.player.slot, CLIENT_ONLY)
+        show(c.player, null)
+        this.drawn.set(c.player.slot, NO_BOARD)
       }
     }
   }

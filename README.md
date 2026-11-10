@@ -18,7 +18,7 @@ Bots corrupt their items on their own and for free, under the same limit, starti
 
 ## Development
 
-The code is in `src/`: `flow.ts` sets the order of the stages, and `draft/`, `lobby/`, `match/`, `broker/` and `ui/` handle their own parts. The client side is in `content/`.
+The code is in `src/`: `flow.ts` sets the order of the stages, and `draft/`, `lobby/`, `match/`, `broker/` and `ui/` handle their own parts.
 
 After a Deadlock update, regenerate the hero table. The script finds the game in Steam's libraries; `--modlock` names the Modlock command line, and may be left out when `modlock` is on the PATH:
 

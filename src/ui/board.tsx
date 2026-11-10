@@ -1,10 +1,9 @@
-import { type Child, log, type Player, type Style, type UiElement } from 'modlock'
+import { type Child, log, type Player, show, type Style, type UiElement } from 'modlock'
 
 import { type Draft, HERO_COLUMN, NO_SEAT, Phase, POOL_SIZE, type Seat, type Spot } from '../draft/draft'
 import { drafted, heroCard, type PoolAbility, type PoolHero } from '../draft/pool'
 import { AbilitySlot, REGULAR_ABILITIES } from '../draft/slots'
 import { Team } from '../draft/teams'
-import { display } from './client'
 import { COUNTDOWN_SECONDS, Sound } from './sounds'
 import { teamName, Word } from './text'
 import { Color, Dim, teamColor, teamTint } from './theme'
@@ -84,7 +83,7 @@ export function drawDraft(player: Player, draft: Draft, view: DraftView): void {
   if (panels > PANEL_LIMIT) {
     log(`draft: the screen holds ${panels} panels, past the ${PANEL_LIMIT} a player may be shown`)
   }
-  display(player, screen)
+  show(player, screen)
 }
 
 /** A plain call, not a component: jsx wraps a component in a fragment, which would change every node id below it. */

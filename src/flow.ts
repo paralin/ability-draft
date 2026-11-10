@@ -16,7 +16,7 @@ import { LateArrivals } from './match/late'
 import { matchOver } from './match/over'
 import { connectedPeople, type HeroRead, HeroReads, playerAt } from './match/roster'
 import { KeyUpgrades } from './match/upgrades'
-import { clearHidden, forgetHidden, showGameHud } from './ui/client'
+import { clearHidden, forgetHidden, showGameHud } from './ui/hud'
 import { Cues } from './ui/cues'
 import { TooltipHelpers } from './ui/helper'
 import { Painter } from './ui/painter'
@@ -45,9 +45,8 @@ enum Stage {
   Heroes = 'heroes',
   Playing = 'playing',
   /**
-   * From the game's end of the match until the next world: the client layout
-   * gives each person the game's HUD back, since the game's own lobby shows the
-   * same HUD and the layout does not run there.
+   * From the game's end of the match until the next world: each person gets
+   * the game's HUD back, since the game's own lobby shows the same HUD.
    */
   Over = 'over',
 }
@@ -316,8 +315,8 @@ export class Flow {
    * game's team picker hidden, and one on a team sees their team's spot. They
    * stay as they joined, on no team of the game's and without a hero, where the
    * game keeps the view still and the cursor free; a spectator's camera would
-   * fly and take the cursor. The client layout also hides the rest of the game's
-   * HUD until the last pick.
+   * fly and take the cursor. Modlock also hides the rest of the game's HUD
+   * until the last pick.
    */
   private seatWaiting(): void {
     // One still loading, as after a reconnect, keeps their team; one gone

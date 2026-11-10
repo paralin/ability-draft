@@ -1,12 +1,16 @@
-import type { Player } from 'modlock'
+import { type AbilityRow, abilityDisplay, type Player, players } from 'modlock'
 
 import { heroById, type PoolAbility, poolAbility, type PoolHero } from '../draft/pool'
 import { ABILITY_SLOTS } from '../draft/slots'
 import type { Team } from '../draft/teams'
 import { connectedPeople, type HeroRead } from '../match/roster'
-import { type Mine, routeMine, routeTab, type TabHero } from './client'
+
+/** The picture of an ability outside the pool, which has none of its own here. */
+const UNKNOWN_ICON = 's2r://panorama/images/hud/ping/ping_icon_question.vsvg'
 
 interface RowAbility {
+  /** The game's name of the ability the hero holds, or '' for none. */
+  readonly name: string
   /** Undefined for one outside the pool. */
   readonly ability: PoolAbility | undefined
   /** The bought tiers: bit 0 unlocks it and bits 1 to 3 are its upgrades. */
@@ -14,14 +18,10 @@ interface RowAbility {
 }
 
 interface HeroRow {
-  readonly slot: number
-  readonly name: string
+  readonly player: Player
   readonly team: Team
   readonly hero: PoolHero | undefined
   readonly abilities: readonly RowAbility[]
-  /** The ability points and unlocks the player holds unspent. */
-  readonly points: number
-  readonly unlocks: number
 }
 
 /**
@@ -39,23 +39,14 @@ function heroRows(heroes: readonly HeroRead[], bought: ReadonlyMap<number, reado
     const abilities: RowAbility[] = ABILITY_SLOTS.map((slot) => {
       const held = owned.find((a) => a.slot === slot)
       const upgrades = (keys[slot] ?? 0) | (held?.upgrades ?? 0)
-      return { ability: held === undefined ? undefined : poolAbility(held.name), upgrades }
+      return { name: held?.name ?? '', ability: held === undefined ? undefined : poolAbility(held.name), upgrades }
     })
-    rows.push({
-      slot: c.player.slot,
-      name: c.name,
-      team: pawn.team,
-      hero: heroById(pawn.hero),
-      abilities,
-      points: pawn.abilityPoints,
-      unlocks: pawn.abilityUnlocks,
-    })
+    rows.push({ player: c.player, team: pawn.team, hero: heroById(pawn.hero), abilities })
   }
-  return rows.sort((a, b) => a.team - b.team || a.slot - b.slot)
+  return rows.sort((a, b) => a.team - b.team || a.player.slot - b.player.slot)
 }
 
-function differs(sent: Map<number, string>, slot: number, value: unknown): boolean {
-  const text = JSON.stringify(value)
+function differs(sent: Map<number, string>, slot: number, text: string): boolean {
   if (sent.get(slot) === text) {
     return false
   }
@@ -63,56 +54,49 @@ function differs(sent: Map<number, string>, slot: number, value: unknown): boole
   return true
 }
 
+/**
+ * Each hero's four abilities as Modlock's abilityDisplay shows them: the held
+ * ability's own window over its pool picture, a question mark for one outside
+ * the pool, and the game's own in a slot that holds none.
+ */
+function displayRows(rows: readonly HeroRow[]): AbilityRow[] {
+  return rows.map((r) => ({
+    player: r.player,
+    abilities: r.abilities.map((a) =>
+      a.name === '' ? undefined : { name: a.name, image: a.ability?.icon ?? UNKNOWN_ICON, upgrades: a.upgrades }),
+  }))
+}
+
+/**
+ * Shows every person each hero's drafted abilities on Tab's rows, and their
+ * own on their ability bar, through Modlock, which draws them in the game's
+ * frames and pips with the game's ability window over each, and gives the
+ * game's own back as a person leaves or the screen ends.
+ */
 export class TabSender {
-  private readonly tabSent = new Map<number, string>()
-  private readonly mineSent = new Map<number, string>()
+  private readonly sent = new Map<number, string>()
 
   /** bought: by slot, the upgrade bits bought on each key this match. */
   send(heroes: readonly HeroRead[], bought: ReadonlyMap<number, readonly number[]>): void {
-    const rows = heroRows(heroes, bought)
-    // The Tab screen's list holds each hero's abilities by name, with their
-    // upgrades and icons; the game's own ability window shows the rest.
-    // Modlock sends the whole screen to the game on any change, so the
-    // routes stay small.
-    const tab = rows.map((r) => ({
-      s: r.slot,
-      n: r.name,
-      h: r.hero?.name ?? '',
-      a: r.abilities.map((a): readonly [string, number, string] => [a.ability?.name ?? '', a.upgrades, a.ability?.icon ?? '']),
-    }))
+    const rows = displayRows(heroRows(heroes, bought))
+    // Every viewer gets the same rows; Modlock marks each viewer's own.
+    const text = JSON.stringify(rows.map((r) => [r.player.slot, r.abilities]))
     for (const c of connectedPeople()) {
-      this.sendTab(c.player, tab)
-      this.sendMine(c.player, rows)
-    }
-  }
-
-  private sendTab(player: Player, tab: readonly TabHero[]): void {
-    if (differs(this.tabSent, player.slot, tab)) {
-      routeTab(player, tab)
-    }
-  }
-
-  private sendMine(player: Player, rows: readonly HeroRow[]): void {
-    // The game's ability bar shows the upgrades of the hero's own ability for
-    // each slot, so the client layout lights every slot's pips from these, and
-    // which the player can buy from the points and unlocks; a click on the bar
-    // is the mod's, see src/match/upgrades.ts.
-    const own = rows.find((r) => r.slot === player.slot)
-    const mine: Mine = own === undefined
-      ? { u: [], p: 0, k: 0 }
-      : { u: own.abilities.map((a) => a.upgrades), p: own.points, k: own.unlocks }
-    if (differs(this.mineSent, player.slot, mine)) {
-      routeMine(player, mine)
+      if (differs(this.sent, c.player.slot, text)) {
+        abilityDisplay(c.player, rows)
+      }
     }
   }
 
   forget(slot: number): void {
-    this.tabSent.delete(slot)
-    this.mineSent.delete(slot)
+    this.sent.delete(slot)
   }
 
+  /** A new lobby gives every person the game's own abilities back. */
   clear(): void {
-    this.tabSent.clear()
-    this.mineSent.clear()
+    for (const c of players()) {
+      abilityDisplay(c.player)
+    }
+    this.sent.clear()
   }
 }

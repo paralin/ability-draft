@@ -1,6 +1,6 @@
 import { type Connection, log } from 'modlock'
 
-import { hidePicker } from '../ui/client'
+import { hidePicker } from '../ui/hud'
 import { Word } from '../ui/text'
 
 export class LateArrivals {

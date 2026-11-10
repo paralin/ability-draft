@@ -1,8 +1,7 @@
-import type { Connection, Player, Style } from 'modlock'
+import { type Connection, type Player, show, type Style } from 'modlock'
 
 import { BROKER_OPENINGS, BrokerOpening } from '../broker/broker'
 import { Team, TEAM_SEATS } from '../draft/teams'
-import { display } from './client'
 import { Sound } from './sounds'
 import { teamName, Word } from './text'
 import { Color, teamColor, teamTint } from './theme'
@@ -62,7 +61,7 @@ export function drawLobby(player: Player, view: LobbyView): void {
   const status = view.startsIn === undefined
     ? `${Word.Ready}: ${readyCount} / ${view.people.length}`
     : `${Word.AllReady} ${view.startsIn}`
-  display(
+  show(
     player,
     <panel style={{ width: '100%', height: '100%', background: Color.LobbyShade }}>
       <panel style={{ horizontalAlign: 'center', verticalAlign: 'center', flow: 'down' }}>

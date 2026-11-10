@@ -1,7 +1,0 @@
-<root>
-  <scripts>
-    <include src="file://{resources}/scripts/modlock/layout.js" />
-    <include src="file://{resources}/scripts/{addon}/client.js" />
-  </scripts>
-  <Panel hittest="false" style="width: 0px; height: 0px;" />
-</root>

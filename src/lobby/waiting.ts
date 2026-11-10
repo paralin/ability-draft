@@ -1,7 +1,7 @@
 import { type Connection, type EntityPlacement, entityPosition, log, moveEntity } from 'modlock'
 
 import type { Team } from '../draft/teams'
-import { hideGameHud, hidePicker } from '../ui/client'
+import { hideGameHud, hidePicker } from '../ui/hud'
 import { observerOf, SPOTS } from './camera'
 
 const VIEW_SECONDS = 1
