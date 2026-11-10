@@ -630,17 +630,6 @@ function pipsOf(icon) {
   return beside.length === 1 ? beside[0] : null
 }
 
-/** The number of the newest purchase made, so a route read again does not repeat it. */
-let lastBuy = 0
-
-function buy(value) {
-  if (!value || typeof value.item !== 'string' || !(value.order > lastBuy)) {
-    return
-  }
-  lastBuy = value.order
-  $.DispatchEvent('CitadelConCommand', 'buyitem ' + value.item + ' ' + value.source)
-}
-
 // The Broker's window counts down to when he leaves, a time the game no longer
 // sets, so it would read 34 days. That line stays hidden.
 
@@ -701,7 +690,7 @@ function tick() {
 
 /** The routes src/ui/client.tsx sends; this script cannot import its enum. */
 const Route = Object.freeze({
-  Tab: 'tab', Mine: 'mine', Buy: 'buy',
+  Tab: 'tab', Mine: 'mine',
   Over: 'over',
 })
 
@@ -722,8 +711,6 @@ function onRoute(name, handler) {
 }
 
 // The wiring: each handler runs right here, so nothing is declared below this line.
-
-onRoute(Route.Buy, buy)
 
 onRoute(Route.Tab, (value) => {
   tabHeroes = Array.isArray(value) ? value : []

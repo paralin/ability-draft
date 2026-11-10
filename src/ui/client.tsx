@@ -16,23 +16,7 @@ export function display(player: Player, root: Child): void {
 enum Route {
   Tab = 'tab',
   Mine = 'mine',
-  Buy = 'buy',
   Over = 'over',
-}
-
-/** An item the person's game buys with the game's own command; order tells each purchase apart. */
-interface Buy {
-  readonly order: number
-  readonly item: string
-  readonly source: number
-}
-
-export function routeBuy(player: Player, buy: Buy): void {
-  route(player, Route.Buy, buy)
-}
-
-export function forgetBuy(player: Player): void {
-  route(player, Route.Buy, undefined)
 }
 
 /**

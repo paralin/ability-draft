@@ -106,7 +106,6 @@ export class Flow {
     this.waitView.clear()
     this.tabSender.clear()
     this.broker.clear()
-    this.imbuing.clear()
     this.reads.clear()
     this.lateArrivals.clear()
     this.bought.clear()
@@ -181,7 +180,7 @@ export class Flow {
 
   buyImbuingItem(player: Player, args: string): void {
     if (this.stage === Stage.Playing) {
-      this.imbuing.request(player, args, this.now)
+      this.imbuing.request(player, args)
     }
   }
 
@@ -542,7 +541,7 @@ export class Flow {
    * One hero is read each frame, in turn. Keeping its drafted abilities acts on
    * that fresh read alone, so nothing is granted twice from an older one, and a
    * changed read goes to the Tab screens and the ability bars at once. The
-   * Broker and the purchases follow the kept reads each READ_SECONDS.
+   * Broker follows the kept reads each READ_SECONDS.
    */
   private playFrame(draft: Draft): void {
     if (!this.botsCalled && matchStarted()) {
@@ -560,7 +559,6 @@ export class Flow {
       this.nextRead = this.now + READ_SECONDS
       const heroes = this.reads.all()
       this.broker.follow(heroes)
-      this.imbuing.follow(heroes, this.now)
       if (matchOver()) {
         log('draft: the match is over; the game gets its HUD back')
         this.enter(Stage.Over)

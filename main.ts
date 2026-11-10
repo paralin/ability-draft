@@ -20,7 +20,7 @@ onFrame((frame) => flow.frame(frame.timeSeconds))
 command('selecthero', (player) => flow.heroCommand(player))
 
 // The game's own command for an item that strengthens an ability buys nothing
-// for a drafted hero; the mod has the item bought another way.
+// for a drafted hero; the mod buys it through the shop for the drafted ability.
 command('buydependentitem', (player, args) => flow.buyImbuingItem(player, args))
 
 // Alt with an ability's key sends the first, a click on the ability bar the
