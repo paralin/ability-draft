@@ -1,4 +1,4 @@
-import { addBot, hide, holdReload, log, type Player, players } from 'modlock'
+import { abilityBarPresses, addBot, hide, holdReload, log, type Player, players } from 'modlock'
 
 import { Broker, setBrokerOpening } from './broker/broker'
 import { Draft, type Entrant, NO_SEAT, Phase, pickBoard, type Seat, type Spot } from './draft/draft'
@@ -100,6 +100,10 @@ export class Flow {
     this.botsCalled = false
     this.painter.clear()
     clearHidden()
+    this.upgrades.clear()
+    for (const c of players()) {
+      abilityBarPresses(c.player)
+    }
     this.heroAskedAt.clear()
     this.heroClickedAt.clear()
     this.room.clear()
@@ -187,7 +191,7 @@ export class Flow {
   /** trainorupgradeability: Alt with an ability's key, numbered from 1. */
   upgradeByKey(player: Player, args: string): void {
     if (this.stage === Stage.Playing) {
-      this.upgrades.request(player, args, 1)
+      this.upgrades.request(player, args, 1, this.now)
     }
   }
 
@@ -197,7 +201,14 @@ export class Flow {
    */
   upgradeBySlot(player: Player, args: string): void {
     if (this.stage === Stage.Playing) {
-      this.upgrades.request(player, args, 0)
+      this.upgrades.request(player, args, 0, this.now)
+    }
+  }
+
+  /** A click on the ability bar's icon or pips in slot, which Modlock reports. */
+  upgradeFromBar(player: Player, slot: number): void {
+    if (this.stage === Stage.Playing) {
+      this.upgrades.bar(player, slot, this.now)
     }
   }
 
@@ -212,7 +223,7 @@ export class Flow {
       log(`upgrade: ${name} of player ${player.slot}: not held`)
       return
     }
-    this.upgrades.request(player, String(held.slot), 0)
+    this.upgrades.request(player, String(held.slot), 0, this.now)
   }
 
   /**
@@ -292,6 +303,7 @@ export class Flow {
         this.tabSender.forget(c.player.slot)
         this.painter.forget(c.player.slot)
         forgetHidden(c.player.slot)
+        this.upgrades.forget(c.player.slot)
       }
     }
   }
@@ -513,6 +525,12 @@ export class Flow {
     this.room.clearTeams()
     this.waitView.restore()
     this.painter.releaseScreens()
+    // A click on the ability bar sends the game nothing for a drafted ability.
+    for (const c of players()) {
+      if (!c.bot) {
+        abilityBarPresses(c.player, (player, slot) => this.upgradeFromBar(player, slot))
+      }
+    }
     // The seats were let go above, so the holds still known are those of
     // drafters who left.
     this.heroHold.releaseLeftovers()
