@@ -17,7 +17,6 @@ enum Route {
   Tab = 'tab',
   Mine = 'mine',
   Buy = 'buy',
-  Upgrade = 'upgrade',
   Over = 'over',
 }
 
@@ -34,19 +33,6 @@ export function routeBuy(player: Player, buy: Buy): void {
 
 export function forgetBuy(player: Player): void {
   route(player, Route.Buy, undefined)
-}
-
-/**
- * Abilities the person's game buys, each an order and how: upgrade_ability and
- * its number, or in_ability and the key, pressed with Tab held. The order tells
- * each purchase apart.
- */
-export function routeUpgrades(player: Player, upgrades: readonly (readonly [number, string])[]): void {
-  route(player, Route.Upgrade, upgrades)
-}
-
-export function forgetUpgrades(player: Player): void {
-  route(player, Route.Upgrade, undefined)
 }
 
 /**

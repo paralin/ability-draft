@@ -107,7 +107,6 @@ export class Flow {
     this.tabSender.clear()
     this.broker.clear()
     this.imbuing.clear()
-    this.upgrades.clear()
     this.reads.clear()
     this.lateArrivals.clear()
     this.bought.clear()
@@ -189,7 +188,7 @@ export class Flow {
   /** trainorupgradeability: Alt with an ability's key, numbered from 1. */
   upgradeByKey(player: Player, args: string): void {
     if (this.stage === Stage.Playing) {
-      this.upgrades.request(player, args, this.now, 1)
+      this.upgrades.request(player, args, 1)
     }
   }
 
@@ -199,7 +198,7 @@ export class Flow {
    */
   upgradeBySlot(player: Player, args: string): void {
     if (this.stage === Stage.Playing) {
-      this.upgrades.request(player, args, this.now, 0)
+      this.upgrades.request(player, args, 0)
     }
   }
 
@@ -214,7 +213,7 @@ export class Flow {
       log(`upgrade: ${name} of player ${player.slot}: not held`)
       return
     }
-    this.upgrades.request(player, String(held.slot), this.now, 0)
+    this.upgrades.request(player, String(held.slot), 0)
   }
 
   /**
@@ -562,7 +561,6 @@ export class Flow {
       const heroes = this.reads.all()
       this.broker.follow(heroes)
       this.imbuing.follow(heroes, this.now)
-      this.upgrades.follow(this.now)
       if (matchOver()) {
         log('draft: the match is over; the game gets its HUD back')
         this.enter(Stage.Over)

@@ -487,10 +487,6 @@ function findBar() {
     .sort((a, b) => (a.id < b.id ? -1 : 1))
   const pipRows = inOrder(signature, BAR_DEPTH, isPipRow)
   barPips = barIcons.map((icon, slot) => pipsOf(icon) || pipRows[slot] || null)
-  barIcons.forEach((icon, slot) => {
-    listenForClicks(icon, slot)
-    listenForClicks(barPips[slot], slot)
-  })
   return true
 }
 
@@ -645,91 +641,6 @@ function buy(value) {
   $.DispatchEvent('CitadelConCommand', 'buyitem ' + value.item + ' ' + value.source)
 }
 
-/** The newest upgrade order sent, so each is sent once. */
-let lastUpgrade = 0
-
-/** An ability key. */
-const KEY_UPGRADE = /^in_ability[1-4]$/
-
-/** How long the Tab screen is held before and after the key, for the game to read them in order. */
-const TAB_SECONDS = 0.05
-
-/**
- * Presses key as a held Tab with that key does, which buys the ability on it.
- * The script holds Tab itself even when the player's Tab looks open: the
- * player may let go of it before the mod's answer comes, and the key alone
- * casts the ability. Letting go of the script's Tab closes the player's too.
- */
-function pressWithTab(key) {
-  const send = (line) => $.DispatchEvent('CitadelConCommand', line)
-  send('+show_scoreboard')
-  $.Schedule(TAB_SECONDS, () => {
-    send('+' + key)
-    $.Schedule(KEY_SECONDS, () => {
-      send('-' + key)
-      $.Schedule(TAB_SECONDS, () => send('-show_scoreboard'))
-    })
-  })
-}
-
-/**
- * Alt with an ability's key, or a click on the ability bar, which the mod
- * claims and answers with the key of the ability to buy. A key this script
- * pressed for a click a moment ago is the answer to that click, already
- * pressed.
- */
-function upgrade(value) {
-  if (!Array.isArray(value)) {
-    return
-  }
-  for (const [order, line] of value) {
-    if (!(order > lastUpgrade)) {
-      continue
-    }
-    if (KEY_UPGRADE.test(line)) {
-      lastUpgrade = order
-      if (Date.now() / 1000 - (clickedAt[line] || 0) >= CLICK_ANSWER_SECONDS) {
-        pressWithTab(line)
-      }
-    }
-  }
-}
-
-/** When this script last pressed each key for a click on the bar, in seconds. */
-const clickedAt = {}
-
-/** How long after a click the mod's answer to it may come. */
-const CLICK_ANSWER_SECONDS = 1
-
-/** A click reaches an icon and the pips inside it alike; a second within this is the same click. */
-const SAME_CLICK_SECONDS = 0.2
-
-/** Marks a bar panel this script listens on for clicks. */
-const CLICK_KEY = 'ad-click'
-
-/**
- * A click on the bar's icon or its pips, with Alt or Tab held, buys the
- * ability in that slot. The game answers such a click from the hero's own
- * abilities, which buys the wrong one or sends nothing at all for a drafted
- * one, so the script presses the slot's key with Tab itself. The listeners stay
- * on the game's panels, so they do nothing once the script stops drawing.
- */
-function listenForClicks(panel, slot) {
-  if (!panel || !panel.IsValid() || panel.GetAttributeString(CLICK_KEY, '') === 'on') {
-    return
-  }
-  panel.SetAttributeString(CLICK_KEY, 'on')
-  $.RegisterEventHandler('Activated', panel, () => {
-    const key = 'in_ability' + (slot + 1)
-    const now = Date.now() / 1000
-    if (!drawing() || now - (clickedAt[key] || 0) < SAME_CLICK_SECONDS) {
-      return
-    }
-    clickedAt[key] = now
-    pressWithTab(key)
-  })
-}
-
 // The Broker's window counts down to when he leaves, a time the game no longer
 // sets, so it would read 34 days. That line stays hidden.
 
@@ -790,7 +701,7 @@ function tick() {
 
 /** The routes src/ui/client.tsx sends; this script cannot import its enum. */
 const Route = Object.freeze({
-  Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade',
+  Tab: 'tab', Mine: 'mine', Buy: 'buy',
   Over: 'over',
 })
 
@@ -813,8 +724,6 @@ function onRoute(name, handler) {
 // The wiring: each handler runs right here, so nothing is declared below this line.
 
 onRoute(Route.Buy, buy)
-
-onRoute(Route.Upgrade, upgrade)
 
 onRoute(Route.Tab, (value) => {
   tabHeroes = Array.isArray(value) ? value : []
