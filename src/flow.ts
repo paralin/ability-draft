@@ -85,8 +85,8 @@ export class Flow {
   /**
    * Forgets the previous world, which took its players' heroes and bots, and
    * lifts the input blocks, which a world change keeps. What outlives a
-   * world: generations, stageStart, nextRead, the cues, the painter's
-   * version, and each person's sound history.
+   * world: generations, stageStart, nextRead, the cues, and the painter's
+   * version.
    */
   resetForWorld(): void {
     this.heroHold.reset()
@@ -290,7 +290,6 @@ export class Flow {
       this.generations.set(c.player.slot, c.generation)
       if (known !== undefined) {
         hide(c.player)
-        this.cues.forget(c.player.slot)
         this.tabSender.forget(c.player.slot)
         this.painter.forget(c.player.slot)
       }

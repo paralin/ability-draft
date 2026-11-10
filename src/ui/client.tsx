@@ -1,16 +1,7 @@
 import { type Child, type Player, route, show } from 'modlock'
 
-import type { Sound } from './sounds'
-
 // One-letter keys because these are the routes' wire format: Tab's list carries
 // every hero, about 3 KB of the 8192 bytes a route holds.
-
-/** One sound played to a player: its number, event and seconds, 0 to play it out. */
-export interface Played {
-  readonly n: number
-  readonly s: Sound
-  readonly t: number
-}
 
 /**
  * Shows player root, as show does, with the client layout first, so it stays in
@@ -25,7 +16,6 @@ export function display(player: Player, root: Child): void {
 enum Route {
   Picker = 'picker',
   Hud = 'hud',
-  Sounds = 'sounds',
   Tab = 'tab',
   Mine = 'mine',
   Buy = 'buy',
@@ -89,10 +79,6 @@ export function hideGameHud(player: Player): void {
 
 export function showGameHud(player: Player): void {
   route(player, Route.Hud, false)
-}
-
-export function routeSounds(player: Player, played: readonly Played[]): void {
-  route(player, Route.Sounds, { played })
 }
 
 export interface TabHero {

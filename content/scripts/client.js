@@ -878,29 +878,6 @@ function watchBoard() {
   $.Schedule(0, watchBoard)
 }
 
-// The sounds: each numbered, played once in order. The first list the layout
-// reads is only noted, so a layout made anew does not play old sounds.
-
-let heard = -1
-
-function playNew(played) {
-  const newest = played.reduce((most, each) => Math.max(most, each.n | 0), 0)
-  if (heard < 0) {
-    heard = newest
-    return
-  }
-  for (const each of played) {
-    if ((each.n | 0) <= heard || typeof each.s !== 'string') {
-      continue
-    }
-    const playing = PlayUISoundEvent(each.s)
-    if (each.t > 0) {
-      $.Schedule(each.t, () => StopUISoundEvent(playing))
-    }
-  }
-  heard = Math.max(heard, newest)
-}
-
 /** The number of the newest purchase made, so a route read again does not repeat it. */
 let lastBuy = 0
 
@@ -1096,7 +1073,7 @@ function tick() {
 
 /** The routes src/ui/client.tsx sends; this script cannot import its enum. */
 const Route = Object.freeze({
-  Hud: 'hud', Picker: 'picker', Sounds: 'sounds', Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade', TipSlots: 'tipSlots',
+  Hud: 'hud', Picker: 'picker', Tab: 'tab', Mine: 'mine', Buy: 'buy', Upgrade: 'upgrade', TipSlots: 'tipSlots',
   Over: 'over',
 })
 
@@ -1139,8 +1116,6 @@ onRoute(Route.Picker, (value) => {
     $.Schedule(0, watchBoard)
   }
 })
-
-onRoute(Route.Sounds, (value) => playNew(value && Array.isArray(value.played) ? value.played : []))
 
 onRoute(Route.Buy, buy)
 

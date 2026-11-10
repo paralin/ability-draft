@@ -1,34 +1,29 @@
 import type { Player } from 'modlock'
 
 import { type Draft, Phase } from '../draft/draft'
-import { connectedPeople, playerAt } from '../match/roster'
-import { type Played, routeSounds } from './client'
-import { COUNTDOWN_SECONDS, SCROLL_SECONDS, Sound } from './sounds'
-
-/** The sounds a route carries: those the game may not have read yet. */
-const SOUNDS_KEPT = 8
+import { playerAt } from '../match/roster'
+import { playSound, playSoundToAll } from '../sound/sound'
+import { COUNTDOWN_SECONDS, Cue } from './sounds'
 
 export class Cues {
   private heardPicks = 0
   private heardTurn = -1
   /** As turn:second. */
   private ticked = ''
-  private readonly playedBySlot = new Map<number, Played[]>()
-  private nextSound = 1
 
   start(): void {
     this.heardPicks = 0
     this.heardTurn = -1
     this.ticked = ''
-    this.toAll(Sound.Start)
+    playSoundToAll(Cue.Start)
   }
 
   end(): void {
-    this.toAll(Sound.End)
+    playSoundToAll(Cue.End)
   }
 
   refuse(player: Player): void {
-    this.play(player, Sound.Refuse)
+    playSound(player, Cue.Refuse)
   }
 
   follow(draft: Draft, now: number): void {
@@ -42,16 +37,12 @@ export class Cues {
     this.playCountdown(draft, now, drafter)
   }
 
-  forget(slot: number): void {
-    this.playedBySlot.delete(slot)
-  }
-
   private playPicks(draft: Draft): void {
     for (const taken of draft.history.slice(this.heardPicks)) {
       const seat = draft.seats[taken.seat]
       const picker = seat === undefined || seat.bot ? undefined : playerAt(seat.slot)
       if (picker !== undefined) {
-        this.play(picker, taken.hero !== undefined ? Sound.OwnHero : Sound.OwnAbility)
+        playSound(picker, taken.hero !== undefined ? Cue.OwnHero : Cue.OwnAbility)
       }
     }
     this.heardPicks = draft.history.length
@@ -63,11 +54,11 @@ export class Cues {
     }
     // The first turn opens the picks; each later one scrolls the order.
     if (this.heardTurn >= 0) {
-      this.toAll(Sound.Scroll, SCROLL_SECONDS)
+      playSoundToAll(Cue.Scroll)
     }
     this.heardTurn = turn
     if (drafter !== undefined) {
-      this.play(drafter, Sound.YourTurn)
+      playSound(drafter, Cue.YourTurn)
     }
   }
 
@@ -76,21 +67,7 @@ export class Cues {
     const tick = `${draft.turn}:${left}`
     if (drafter !== undefined && left >= 1 && left <= COUNTDOWN_SECONDS && this.ticked !== tick) {
       this.ticked = tick
-      this.play(drafter, Sound.Tick)
+      playSound(drafter, Cue.Tick)
     }
-  }
-
-  private toAll(sound: Sound, seconds?: number): void {
-    for (const c of connectedPeople()) {
-      this.play(c.player, sound, seconds)
-    }
-  }
-
-  /** Once in player's game, for them alone; cut after seconds when they are given, to keep only its start. */
-  private play(player: Player, sound: Sound, seconds?: number): void {
-    const newest = { n: this.nextSound++, s: sound, t: seconds ?? 0 }
-    const played = [...(this.playedBySlot.get(player.slot) ?? []), newest].slice(-SOUNDS_KEPT)
-    this.playedBySlot.set(player.slot, played)
-    routeSounds(player, played)
   }
 }
