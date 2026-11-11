@@ -1,9 +1,8 @@
-import type { Player } from 'modlock'
+import { type Player, uiSound } from 'modlock'
 
 import { type Draft, Phase } from '../draft/draft'
-import { playerAt } from '../match/roster'
-import { playSound, playSoundToAll } from '../sound/sound'
-import { COUNTDOWN_SECONDS, Cue } from './sounds'
+import { connectedPeople, playerAt } from '../match/roster'
+import { COUNTDOWN_SECONDS, SCROLL_SECONDS, Sound } from './sounds'
 
 export class Cues {
   private heardPicks = 0
@@ -15,15 +14,15 @@ export class Cues {
     this.heardPicks = 0
     this.heardTurn = -1
     this.ticked = ''
-    playSoundToAll(Cue.Start)
+    this.toAll(Sound.Start)
   }
 
   end(): void {
-    playSoundToAll(Cue.End)
+    this.toAll(Sound.End)
   }
 
   refuse(player: Player): void {
-    playSound(player, Cue.Refuse)
+    this.play(player, Sound.Refuse)
   }
 
   follow(draft: Draft, now: number): void {
@@ -42,7 +41,7 @@ export class Cues {
       const seat = draft.seats[taken.seat]
       const picker = seat === undefined || seat.bot ? undefined : playerAt(seat.slot)
       if (picker !== undefined) {
-        playSound(picker, taken.hero !== undefined ? Cue.OwnHero : Cue.OwnAbility)
+        this.play(picker, taken.hero !== undefined ? Sound.OwnHero : Sound.OwnAbility)
       }
     }
     this.heardPicks = draft.history.length
@@ -54,11 +53,11 @@ export class Cues {
     }
     // The first turn opens the picks; each later one scrolls the order.
     if (this.heardTurn >= 0) {
-      playSoundToAll(Cue.Scroll)
+      this.toAll(Sound.Scroll, SCROLL_SECONDS)
     }
     this.heardTurn = turn
     if (drafter !== undefined) {
-      playSound(drafter, Cue.YourTurn)
+      this.play(drafter, Sound.YourTurn)
     }
   }
 
@@ -67,7 +66,18 @@ export class Cues {
     const tick = `${draft.turn}:${left}`
     if (drafter !== undefined && left >= 1 && left <= COUNTDOWN_SECONDS && this.ticked !== tick) {
       this.ticked = tick
-      playSound(drafter, Cue.Tick)
+      this.play(drafter, Sound.Tick)
     }
+  }
+
+  private toAll(sound: Sound, seconds?: number): void {
+    for (const c of connectedPeople()) {
+      this.play(c.player, sound, seconds)
+    }
+  }
+
+  /** Once in player's game, for them alone; cut after seconds when they are given, to keep only its start. */
+  private play(player: Player, sound: Sound, seconds?: number): void {
+    uiSound(player, sound, { seconds })
   }
 }
